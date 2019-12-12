@@ -1194,7 +1194,7 @@ AllenNLP 完全通过配置文件来对数据处理、模型结果和训练过�
    ```
    "type": "text_classification_json"
    ```
-    这个 type 的值是 TextClassificationJsonReader 这个类实现的时候注册上的，去看代码会看到有这样的片段
+   这个 type 的值是 TextClassificationJsonReader 这个类实现的时候注册上的，去看代码会看到有这样的片段
    ```
    @DatasetReader.register("text_classification_json")
    class TextClassificationJsonReader(DatasetReader):
@@ -1205,16 +1205,16 @@ AllenNLP 完全通过配置文件来对数据处理、模型结果和训练过�
   {"label": "education", "text": "中国高考成绩海外认可是“狼来了”吗？"}
   {"label": "sports, "text": "图文：法网孟菲尔斯苦战进16强孟菲尔斯怒吼"}
   {"label": "sports, "text": "四川丹棱举行全国长距登山挑战赛近万人参与"}
-  ```
-  DataReader 通过配置中 tokenizer 部分会创建一个分词器，用来将文本转换为词序列
-  ```
+   ```
+   DataReader 通过配置中 tokenizer 部分会创建一个分词器，用来将文本转换为词序列
+   ```
    "tokenizer": {
        "type": "word",
        "word_splitter": {
            "type": "jieba",
        }
    }
-```
+   ```
    type 的值设置为 word，这没什么好说的。
 
    tokenizer 中的 word_splitter 指定的才是真正的分词器（比较绕）。
@@ -1230,7 +1230,7 @@ AllenNLP 完全通过配置文件来对数据处理、模型结果和训练过�
    touch allen_ext/word_splitter.py
    ```
    然后在 allen_ext/word_splitter.py 中写入如下内容
-```
+   ```python
 from typing import List
 
 import jieba
@@ -1260,54 +1260,60 @@ class JiebaWordSplitter(WordSplitter):
             offset = start + len(word)
 
         return tokens
-```
-使用 WordSplitter.register('jieba') 后就可以在配置中 word_splitter 部分写上 "type": "jieba" 来启用。
+    ```
+   使用 WordSplitter.register('jieba') 后就可以在配置中 word_splitter 部分写上 "type": "jieba" 来启用。
 
-在 allen_ext/__init__.py 中写入如下内容
-
+   在 allen_ext/__init__.py 中写入如下内容
+   ```python
 from .word_splitter import JiebaWordSplitter
 
 __all__ = ['JiebaWordSplitter']
-自定义了 JiebaWordSplitter 后在训练的时候还要加载 allen_ext 这个目录才能生效，这个之后再说。
+   ```
+   自定义了 JiebaWordSplitter 后在训练的时候还要加载 allen_ext 这个目录才能生效，这个之后再说。
 
-模型部分
+* 模型部分
 
-因为是做文本分类，所以 type 设置为 basic_classifier。
+   因为是做文本分类，所以 type 设置为 basic_classifier。
 
-这个分类器需要 text_field_embedder 和 seq2vec_encoder 两个参数：
+   这个分类器需要 text_field_embedder 和 seq2vec_encoder 两个参数：
 
-text_field_embedder 用来定义 word embedding，这个配置应该还好理解
-
-"text_field_embedder": {
-    "tokens": {
-        "type": "embedding",
-        "embedding_dim": 100,
-        "trainable": true
-    }
-}
-seq2vec_encoder 则用来产生句子的编码向量用于分类，这里选择了 CNN
-
-"seq2vec_encoder": {
+   * text_field_embedder 用来定义 word embedding，这个配置应该还好理解
+   ```python
+   "text_field_embedder": {
+       "tokens": {
+           "type": "embedding",
+           "embedding_dim": 100,
+           "trainable": true
+       }
+   }
+   ```
+   seq2vec_encoder 则用来产生句子的编码向量用于分类，这里选择了 CNN
+   ```
+   "seq2vec_encoder": {
     "type": "cnn",
     "embedding_dim": 100,
     "num_filters": 1,
     "ngram_filter_sizes": [2, 3, 4]
-}
-训练部分：略
-配置文件写好后，假设配置文件为 config.json，直接执行下面的命令来训练即可
+   }
+   ```
+* 训练部分：略
 
+配置文件写好后，假设配置文件为 config.json，直接执行下面的命令来训练即可
+```
 allennlp train config.json -s model_save_dir --include-package allen_ext
+```
 选项 --include-package allen_ext 用来来加载自定义的模块。
 
 最终会在 save_dir 目录下产生一个 model.tar.gz 文件，就是模型参数，然后目录下还会产生 tensorboard 能读取的 log，这个挺方便的。
 
-评估的话，用 evaluate 命令
-
+评估用 evaluate 命令
+```
 allennlp evaluate model_save_dir/model.tar.gz test.jsonl --include-package allen_ext
+```
 比较麻烦的是，预测需要一个 Predictor，而 AllenNLP 中内置的 TextClassifierPredictor 要求的输入是 {"sentence": "xxx"} ，这个和 TextClassificationJsonReader 的要求不一样……
 
 如果是在代码里进行预测，那么是没有问题的，可以这样
-
+```python
 from allen_ext import *         # noqa
 from allennlp.models.archival import load_archive
 from allennlp.predictors.predictor import Predictor
@@ -1317,8 +1323,9 @@ predictor = Predictor.from_archive(archive)
 
 inputs = {"sentence": "名师指导托福语法技巧：名词的复数形式"}
 result = predictor.predict_json(inputs)
+```
 得到的 result 是这样的结构
-
+```
 {
     'label': 'education',
     'logits': [
@@ -1346,19 +1353,21 @@ result = predictor.predict_json(inputs)
         6.273159211056881e-14
     ],
 }
+```
 这个输出结构完全是由 TextClassifierPredictor 决定的。
 
 如果要自定义 Predictor，可以参考文档。
 
-基于 BERT 进行文本分类
+#####　基于 BERT 进行文本分类
 AllenNLP 是基于 pytorch 实现的，所以 Google 提供的 BERT 模型在它这里没法用，需要下载它自己提供的模型，以中文模型为例：
-
+```
 mkdir chinese_bert_torch && cd chinese_bert_torch
 wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-pytorch_model.bin -O pytorch_model.bin
 wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-config.json -O config.json
 wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab.txt -O vocab.txt
+```
 然后 config.json 中 data_reader 部分这样写
-
+```
 {
     "dataset_reader": {
         "type": "text_classification_json",
@@ -1376,8 +1385,9 @@ wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab
         }
     }
 }
+```
 model 部分这么写
-
+```
 {
     "model": {
         "type": "bert_for_classification",
@@ -1385,10 +1395,11 @@ model 部分这么写
         "trainable": false
     }
 }
+```
 这里 trainable 设置成 false 的话 BERT 就只是充当一个 encoder，不参与训练；如果要进行 finetuning 的话将其改为 true。
 
 完整的配置是这个样子的
-
+```
 {
     "dataset_reader": {
         "type": "text_classification_json",
@@ -1429,904 +1440,5 @@ model 部分这么写
         }
     }
 }
-训练、评估、预测等操作同未使用 BERT 的时候一样。我在挑选文本分类工具时是有一些标准的，不是非常严格，但大概能分成以下几点：
-
-工程化程度良好的，能提供易用的编程接口或命令行接口
-以 Python 生态内的工具为主 —— 很多其他语言实现的同类工具，限于精力就没有了解了
-后面的内容会分成两块：第一部分讲我的踩坑经历，主要是一些本来以为会好用的工具结果发现不符合我标准的情况；第二部分是我实验之后确认可用的工具和它们的使用方法。
-
-踩坑列表
-本节中列举的工具，建议读者不要浪费时间在上面。
-
-腾讯的 NeuralClassifier
-注：下文仅代表个人观点和感受，不服不管。
-
-三个月前腾讯开源的，见：【开源公告】NeuralNLP-NeuralClassifier - 深度学习文本分类工具 - 云+社区 - 腾讯云。
-
-项目地址：https://github.com/Tencent/NeuralNLP-NeuralClassifier
-
-在我的列表里最坑的一个：
-
-作为一个 Python 项目，没有发布到 pypi 就算了，连 setup.py 也没有，无法安装，项目组织也没眼看，只能像个原始人一样拷贝代码到自己的目录跑跑脚本，很难想象是一个大厂的项目
-训练需要使用一个格式复杂的 json 格式的配置文件，然后这个配置的文档太过简略，不少细节藏在项目提供的脚本里……
-最终我魔改了一通后跑起来了，但是已经恶心到我了，弃。
-
-无人维护的 keras-text
-项目地址：https://github.com/raghakot/keras-text
-
-这个项目我觉得蛮可惜的，从文档和实际使用来看，作者在代码结构和使用流程上是做了一些用心的设计的，但是有些关键模块没有完成，在很多细节上存在令人难以忍受的小问题。
-
-项目已经两年没有更新了，可以参考它的代码，但不建议作为一个正经的工具在实际任务中使用。
-
-差强人意的 text-classification-keras
-项目地址：https://github.com/jfilter/text-classification-keras
-
-该项目是对 keras-text 项目的改进，总体上来说是一个可用的项目，但存在以下问题：
-
-使用文档不齐全
-代码上仍然有一些致命伤，比如
-将文本转成特征向量后，先存了一个文件，然后从文件中加载后再喂给模型……意义不明……
-每次调用的时候都要把 spaCy 的模型重新加载一遍，慢得要死
-作者应该是从 keras-text 项目 fork 过来然后改成能用的状态的，也挺不容易的，但不管怎么说在我这里是一个不合格的工具。
-
-可用的文本分类工具及其使用方法
-使用 NLTK 进行文本分类
-安装: pip install nltk
-
-文档: https://www.nltk.org/api/nltk.classify.html
-
-NLTK 提供了大量的文本处理方法，同时提供了通用的分类器接口，组合起来就能进行文本分类了。
-
-以其中的朴素贝叶斯 NaiveBayesClassifier 为例，可以这样来进行文本分类
-
-实现一个方法，将文本转成 dict 形式的特征
-
-以英文为例，可以直接用 NLTK 中的分词方法，需要的话还可以加上 stemming 或者 lemmatization。
-
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-
-
-def extract_feature(text):
-    feature = {}
-    for word in word_tokenize(text):
-        if word not in stopwords:
-            feature[word] = 1
-
-    return feature
-中文的话可以换成 jieba 或者其他中文分词工具。
-
-训练
-
-from nltk.classify import NaiveBayesClassifier
-
-
-train_texts = [
-    # ...
-]
-train_labels = [
-    # ...
-]
-
-train_features = [extract_feature(text) for text in train_texts]
-train_samples = list(zip(train_features, train_labels))
-classifier = NaiveBayesClassifier.train(train_samples)
-评估
-
-from nltk.classify import accuracy
-
-test_texts = [
-    # ...
-]
-test_labels = [
-    # ...
-]
-
-test_features = [extract_feature(text) for text in test_texts]
-test_samples = list(zip(test_features, test_labels))
-acc = accuracy(classifier, test_samples)
-预测
-
-用 classify 方法直接预测最可能的类别
-
-text = "blablabla"              # 待预测的文本
-feature = extract_feature(text)
-pred_label = classifier.classify(feature)
-用 prob_classify 方法获得所有可能类别的预测分数
-
-text = "blablabla"              # 待预测的文本
-feature = extract_feature(text)
-prob = classifier.prob_classify(feature)
-模型保存和读取
-
-可以直接用 pickle 保存、读取训练好的模型
-
-保存：
-
-import pickle
-
-with open('model.pkl', 'wb') as f:
-    pickle.dump(classifier, f)
-读取：
-
-import pickle
-
-classifier = None
-with open('model.pkl', 'rb') as f:
-    classifier = pickle.load(f)
-NLTK 中还有其他分类器，使用方法和 NaiveBayesClassifier 大同小异。
-
-使用 TextBlob 进行文本分类
-注意：TextBlob 仅支持英文
-
-安装: pip install textblob
-
-文档: https://textblob.readthedocs.io/en/dev/classifiers.html
-
-TextBlob 是一个基于 NLTK 的文本处理工具，其中的文本分类功能也是建立在 NLTK 中分类器的基础上的。
-
-训练
-
-from textblob.classifiers import NaiveBayesClassifier
-
-train_texts = [
-    # ...
-]
-train_labels = [
-    # ...
-]
-train_samples = list(zip(train_texts, train_labels))
-classifier = NaiveBayesClassifier(train_samples)
-评估
-
-test_texts = [
-    # ...
-]
-test_labels = [
-    # ...
-]
-test_samples = list(zip(test_texts, test_labels))
-acc = classifier.accuracy(test_samples)
-预测
-
-只有一个 classify 接口预测得到最有可能的类别
-
-label = classifier.classify("this is a sentence to be classified")
-模型保存和读取
-
-同 NLTK。
-
-相比 NLTK 中原来的文本分类，TextBlob 的封装隐藏了一些细节，简化了接口，用起来还是挺方便的。不好的一点是，TextBlob 里强制依赖了 NLTK 里的 word_tokenize，虽然说 word_tokenize 可以通过 language 参数设置语言，但在 TextBlob 里没有提供传递这个参数的机会，这就导致 TextBlob 只能对英文进行分类。
-
-使用 TextGrocery 进行文本分类
-注意：TextGrocery 仅支持 Python2
-
-安装: pip install tgrocery
-
-文档: https://github.com/2shou/TextGrocery/blob/master/README_CN.md
-
-初始化
-
-需要给分类器指定一个名字
-
-from tgrocery import Grocery
-
-classifier = Grocery('test')
-默认使用 jieba 作为分词器，但也支持在初始化分类器的时候通过 custom_tokenize 参数来自定义分词器
-
-classifier = Grocery('test', custom_tokenize=list)
-要求 custom_tokenize 的参数值是一个 python 的函数。
-
-训练
-
-支持传入 python 数据进行训练：
-
-train_src = [
-    ('education', '名师指导托福语法技巧：名词的复数形式'),
-    ('education', '中国高考成绩海外认可 是“狼来了”吗？'),
-    ('sports', '图文：法网孟菲尔斯苦战进16强 孟菲尔斯怒吼'),
-    ('sports', '四川丹棱举行全国长距登山挑战赛 近万人参与')
-]
-classifier.train(train_src)
-也支持从文件中读取训练数据然后训练，要求文件中一行是一个数据，且行中有一个分隔符把文本和文本的类别标签分隔开，如用竖线分隔：
-
-education|名师指导托福语法技巧：名词的复数形式
-education|中国高考成绩海外认可 是“狼来了”吗？
-sports|图文：法网孟菲尔斯苦战进16强 孟菲尔斯怒吼
-sports|四川丹棱举行全国长距登山挑战赛 近万人参与
-假设上面的内容存储在 train.txt 中，则将 train.txt 作为 train 的参数，同时要用 delimiter 参数指明分隔符
-
-classifier.train('train.txt', delimiter='|')
-评估
-
-test_src = [
-    ('education', '福建春季公务员考试报名18日截止 2月6日考试'),
-    ('sports', '意甲首轮补赛交战记录:米兰客场8战不败国米10年连胜'),
-]
-report = classifier.test(test_src)
-report.show_result()
-上述代码会输出如下内容：
-
-               accuracy       recall
-education      50.00%         100.00%
-sports         0.00%          0.00%
-也可以从文件中读取数据进行评估，文件的要求同训练
-
-report = classifier.test('test.txt', delimiter='|')
-report.show_result()
-预测
-
-使用 predict 接口来进行预测
-
-preds = classifier.predict('意甲首轮补赛交战记录:米兰客场8战不败国米10年连胜')
-print preds.dec_values         # => {'education': 0.00604235155848336, 'sports': -0.006042351558483356}
-print preds.predicted_y        # => education
-print str(preds)               # => education
-模型保存和读取
-
-用 save 方法来保存模型
-
-classifier.save()
-保存模型时会用分类器初始化时给的名字来创建一个目录，比如最开始给的名字是 test，所保存的模型会在 test 目录下，如下所示：
-
-test
-├── converter
-│   ├── class_map.config.pickle
-│   ├── feat_gen.config.pickle
-│   └── text_prep.config.pickle
-├── id
-└── learner
-    ├── idf.pickle
-    ├── liblinear_model
-    └── options.pickle
-用相同的名字创建一个分类器，然后执行 load 方法来读取模型
-
-classifier = Grocery('test', custom_tokenize=list)
-classifier.load()
-这里需要注意的是，保存模型的时候，自定义的分词器是没有被保存下来的，所以在读取的时候，还需要重新设置一下分词器。
-
-TextGrocery 是一个基于 liblinear 的小巧的文本分类实现，可惜作者已经放弃维护了，目前只能在 Python2 环境里面使用。
-
-使用 sklearn 进行文本分类
-安装: pip install scikit-learn
-
-文档: https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html#training-a-classifier
-
-sklearn 中实现了很多的分类器，并且提供了统一的接口，我个人是比较喜欢的。
-
-训练
-
-首先创建一个 vectorizer 用来将文本编码成向量，最常用的可能是 TfidfVectorizer 了
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-
-vectorizer = TfidfVectorizer()
-默认会按空格来分词，如果需要自定义分词器，可以通过 tokenizer 参数来传入一个函数，比如
-
-import jieba
-
-def jieba_tokenize(text):
-    return jieba.lcut(text)
-
-vectorizer = TfidfVectorizer(tokenizer=jieba_tokenize)
-注意：由于 jieba 中加了线程锁，将 jieba.lcut 直接传入，会导致模型无法保存
-
-这个 vectorizer 是需要训练的
-
-texts = [
-    '名师指导托福语法技巧',
-    '中国高考成绩海外认可',
-    '法网孟菲尔斯苦战进16强',
-    '四川丹棱举行登山挑战赛',
-]
-vectorizer.fit(texts)
-一旦训练后，对任意一个文本，会产生一个固定长度的向量，比如：
-
-print(vectorizer.transform(['名师指导托福语法技巧']).toarray())
-上面的代码会输出
-
-[[0.        0.        0.        0.        0.4472136 0.        0.
-  0.        0.        0.4472136 0.4472136 0.4472136 0.        0.
-  0.        0.        0.        0.        0.        0.4472136 0.
-  0.       ]]
-向量化还有其他方法，如下：
-
-from sklearn.feature_extraction.text import (
-    TfidfVectorizer,
-    CountVectorizer,
-    HashingVectorizer,
-)
-from sklearn.feature_extraction import DictVectorizer
-创建一个分类器，比如 SVM
-
-from sklearn.svm import LinearSVC
-
-classifier = LinearSVC()
-如果想使用 GBDT 分类器的话，可以执行 pip install xgboost 安装 XGBoost 这个包，它提供了符合 sklearn 规范的接口，可以直接使用并像 sklearn 的分类器一样用在后面的训练、预测过程中：
-
-from xgboost import XGBClassifier
-
-classifier = XGBClassifier()
-首先用 vectorizer 将训练数据中的文本转成矩阵，然后喂给分类器进行训练
-
-train_texts = [
-    # blablabla
-]
-train_labels = [
-    # blablabla
-]
-train_feats = vectorizer.transform(train_texts)
-classifier.fit(train_feats, train_labels)
-评估
-
-用分类器的 score 方法可以计算测试集的 accuracy
-
-test_texts = [
-    # ...
-]
-test_labels = [
-    # ...
-]
-test_feats = vectorizer.transform(test_texts)
-acc = classifier.score(test_feats, test_labels)
-这个方法其实是调用了 accuracy_score 这个函数，所以也可以自己来计算
-
-from sklearn.metrics import accuracy_score
-
-pred_labels = classifier.predict(test_feats)
-acc = accuracy_score(test_labels, pred_labels)
-还可以用 classification_report 这个函数来得到更详细的评估报告
-
-from sklearn.metrics import classification_report
-
-pred_labels = classifier.predict(test_feats)
-print(classification_report(test_labels, pred_labels))
-输出结果是下面这个样子的：
-
-              precision    recall  f1-score   support
-
-     class 0       0.50      1.00      0.67         1
-     class 1       0.00      0.00      0.00         1
-     class 2       1.00      0.67      0.80         3
-
-    accuracy                           0.60         5
-   macro avg       0.50      0.56      0.49         5
-weighted avg       0.70      0.60      0.61         5
-有时候我们还需要输出分类的混淆矩阵，虽然 sklearn 提供了 sklearn.metrics.confusion_matrix 这个方法来计算混淆矩阵，但它的输出不够直观，我个人比较喜欢用 pandas.crosstab
-
-import pandas
-
-pred_labels = classifier.predict(test_feats)
-cnf_matrix = pandas.crosstab(
-    pandas.Series(test_labels), pandas.Series(pred_labels),
-    rownames=['targets'], colnames=['preds']
-)
-输入结果是下面这个样子：
-
-preds     negative  positive
-
-targets
-negative       590       126
-positive       383       901
-预测
-
-用 predict 方法来预测最可能的类别，或用 predict_proba 方法来获得所预测类别的分数
-
-texts = ['text1', 'text2', 'text3']
-feats = vectorizer.transform(texts)
-labels = classifier.predict(feats) # labels: ['label1', 'label2', 'label3']
-# or
-prob_list = classifier.predict_proba(feats)
-# prob_list:
-# [
-#     {'label1': 0.1, 'label2': 0.3, 'label3': 0.6},
-#     {'label1': 0.1, 'label2': 0.3, 'label3': 0.6},
-#     {'label1': 0.1, 'label2': 0.3, 'label3': 0.6},
-# ]
-注意 sklearn 中的 predict/predict_proba 都被设计为批量预测，没有单个数据预测的接口。
-
-模型保存和读取
-
-保存模型用 pickle 或者 joblib 都可以，注意要把 vectorizer 和 classifier 一起保存。
-
-import pickle
-from sklearn.externals import joblib
-
-with open('model.pkl', 'wb') as f:
-    data = [vectorizer, classifier]
-    pickle.dump(data, f)
-
-# or
-data = [vectorizer, classifier]
-joblib.dump(data, 'model.pkl')
-如果使用 pickle.dump 保存的模型，则用 pickle.load 来读取；如果是用 joblib.dump 保存的则用 joblib.load 读取
-
-vectorizer, classifier = None, None
-with open('model.pkl', 'rb') as f:
-    vectorizer, classifier = pickle.load(f)
-
-# or
-vectorizer, classifier = joblib.load('model.pkl')
-除了上面这样先创建 vectorizer 再创建 classifier 的方法，sklearn 还提供了 Pipeline 这个类来简化这个过程，非常推荐使用。
-
-创建 vectorizer 和 classifier 后，用 Pipeline 把它们组合起来：
-
-from sklearn.pipeline import Pipeline
-
-vectorizer = TfidfVectorizer()
-classifier = LinearSVC()
-pipeline = Pipeline([('vec', vectorizer), ('model', classifier)])
-然后可以直接将文本喂给 pipeline，不用自己再去调用 vectorizer.fit 和 vectorizer.transform 来将文本编码成向量了！
-
-train_texts = [
-    # blablabla
-]
-train_labels = [
-    # blablabla
-]
-pipeline.fit(train_texts, train_labels)
-评估、预测和非 pipeline 方式的差不多，都是可以省略掉将文本转成向量的这个步骤；模型保存时只需要将 pipeline 保存成文件即可。
-
-使用 FastText 进行文本分类
-安装: pip install fasttext
-
-文档: https://fasttext.cc/docs/en/python-module.html#text-classification-model
-
-数据格式
-
-fasttext 的训练和评估都只能从文件中读取数据，而不能直接传入 Python 的值，而且对文件的格式是有要求的
-
-文件中一行一个样本
-每行用制表符分隔，第一列是标签，第二列是文本
-第一列的标签要有 __label__ 前缀
-第二列的文本必须是用空格分隔的词序列，对中文来说，意味着需要先分好词
-文件内容示例如下：
-
-__label__education	名师 指导 托福 语法 技巧 ： 名词 的 复数 形式
-__label__education	中国 高考 成绩 海外 认可 是 “ 狼 来了 ” 吗 ？
-__label__sports	图文 ： 法网 孟菲尔斯 苦战 进 16强 孟菲尔斯 怒吼
-__label__sports	四川 丹棱 举行 全国 长距 登山 挑战赛 近 万人 参与
-训练
-
-假设训练数据按照前面的要求写在了 train_data.txt 里，则用下面的代码来训练：
-
-import fasttext
-
-model = fasttext.train_supervised('train_data.txt')
-评估
-
-假设测试数据在 test_data.txt 中，使用 test 方法来评估模型效果，它会返回数据集中的样本数量，以及 precesion 和 recall 值：
-
-num, precesion, recall = model.test('test_data.txt')
-也可以用 test_label 方法获得每个类别的 precesion、recall 和 f1 值：
-
-print(model.test_label('test_data.txt'))
-输出结果是下面这个样子的：
-
-{
-    '__label__education': {
-        'precision': 0.8830022075055187,
-        'recall': 0.8784773060029283,
-        'f1score': 0.8807339449541285
-    },
-    '__label__sports': {
-        'precision': 0.883881230116649,
-        'recall': 0.853121801432958,
-        'f1score': 0.8682291666666667
-    }
-}
-预测
-
-用 predict 接口来对单条文本进行预测，同样要求文本是用空格分隔的、分好词的
-
-top3_labels, top3_scores = model.predict('土豆网 拟 明年 登陆 纳市 募资 1.5 亿美元', k=3)
-模型保存和读取
-
-保存
-
-model.save_model('model.bin')
-读取
-
-import fasttext
-model = fasttext.load_model('model.bin')
-使用 Kashgari 进行文本分类
-安装: pip install kashgari-tf tensorflow==1.14.0
-
-文档: https://kashgari.bmio.net/
-
-Kashgari 是一个基于神经网络模型的 NLP 工具，内部实现大多数常用的神经网络模型，也支持了最新的 BERT，使用体验挺不错的。
-
-进行常规的文本分类
-训练
-
-Kashgari 要求输入的文本是分好词的，把分词的事情留给用户自己处理。不过分好词就能直接输入到模型中了，不需要像 sklearn 一样通过 vectorizer 转成向量：
-
-from kashgari.tasks.classification.models import CNN_Model
-
-train_x = [['Hello', 'world'], ['Hello', 'Kashgari']]
-train_y = ['a', 'b']
-
-model = CNN_Model()
-model.fit(train_x, train_y)
-训练时还可以设置校验集
-
-val_x = [['Hello', 'world'], ['Hello', 'Kashgari']]
-val_y = ['a', 'b']
-
-model.fit(val_x, val_y)
-评估
-
-test_x = [['Hello', 'world'], ['Hello', 'Kashgari']]
-test_y = ['a', 'b']
-model.evaluate(test_x, test_y)
-会打印测试结果到标准输出，其内容是下面这个格式的：
-
-              precision    recall  f1-score   support
-
-      sports     1.0000    1.0000    1.0000      1000
-   education     1.0000    0.9980    0.9990      1000
-  technology     0.9930    1.0000    0.9965      1000
-
-    accuracy                         0.9985     10000
-   macro avg     0.9985    0.9985    0.9985     10000
-weighted avg     0.9985    0.9985    0.9985     10000
-预测
-
-使用 predict 方法来预测最可能的类别
-
-tokens = ['姚明', '：', '对', '奥尼尔', '不得', '不服']
-model.predict([tokens])          # => ['sports']
-或者用 predict_top_k_class 来获取 topk 的预测结果及分数
-
-print(model.predict_top_k_class([tokens], top_k=3))
-结果
-
-[
-    {
-        'label': 'sports',
-        'confidence': 0.50483656,
-        'candidates': [
-            {'label': 'education', 'confidence': 0.057417843},
-            {'label': 'technology', 'confidence': 0.048766118},
-        ]
-    }
-]
-模型保存和读取
-保存
-
-使用 save 方法将模型保存到 test 目录中，目录不存在会创建
-
-model.save('test')
-目录中会有一个描述模型结构的 model_info.json 和记录模型参数的 model_weights.h5
-
-test
-├── model_info.json
-└── model_weights.h5
-
-0 directories, 2 files
-读取
-
-使用 kashgari.utils.d_model 来读取模型
-
-from kashgari.utils import load_model
-
-model = load_model('test')
-基于 BERT 进行文本分类
-先下载 BERT 模型。
-
-中文的话可以用 Google 开放的: https://storage.googleapis.com/bert_models/2018_11_03/chinese_L-12_H-768_A-12.zip
-
-中文模型下载后解压得到 chinese_L-12_H-768_A-12 这个目录
-
-然后创建基于 BERT 的分类器
-
-from kashgari.embeddings import BERTEmbedding
-from kashgari.tasks.classification.models import CNN_Model
-
-embedding = BERTEmbedding('chinese_L-12_H-768_A-12/', task=kashgari.CLASSIFICATION)
-model = CNN_Model(embedding)
-之后的训练、评估、预测，都和非 BERT 的模型一样。
-
-默认情况下 BERTEmbedding 被设置为不可训练，如果需要对 BERT 进行 finetuning 的话，那么按如下设置：
-
-embedding = BERTEmbedding('chinese_L-12_H-768_A-12/', task=kashgari.CLASSIFICATION, trainable=True)
-使用 AllenNLP 进行文本分类
-安装: pip install allennlp
-
-文档: https://allennlp.org/tutorials
-
-进行常规的文本分类
-AllenNLP 完全通过配置文件来对数据处理、模型结果和训练过程进行设置，最简单的情况下可以一行代码不写就把一个文本分类模型训练出来。下面是一个配置文件示例：
-
-{
-    "dataset_reader": {
-        "type": "text_classification_json",
-        "tokenizer": {
-            "type": "word",
-            "word_splitter": {
-                "type": "jieba",
-            }
-        }
-    },
-    "train_data_path": "allen.data.train",
-    "test_data_path": "allen.data.test",
-    "evaluate_on_test": true,
-    "model": {
-        "type": "basic_classifier",
-        "text_field_embedder": {
-            "tokens": {
-                "type": "embedding",
-                "embedding_dim": 100,
-                "trainable": true
-            }
-        },
-        "seq2vec_encoder": {
-            "type": "cnn",
-            "embedding_dim": 100,
-            "num_filters": 1,
-            "ngram_filter_sizes": [2, 3, 4]
-        }
-    },
-    "iterator": {
-        "type": "bucket",
-        "sorting_keys": [["tokens", "num_tokens"]],
-        "batch_size": 64
-    },
-    "trainer": {
-        "num_epochs": 40,
-        "patience": 3,
-        "cuda_device": -1,
-        "grad_clipping": 5.0,
-        "validation_metric": "+accuracy",
-        "optimizer": {
-            "type": "adam"
-        }
-    }
-}
-配置文件中的内容可以分成
-
-数据部分: 包括 dataset_reader/train_data_path/test_data_path 这几个 key 及其 value
-模型部分: 就是 model 这个 key 的内容
-训练部分: 包括 evaluate_on_test/iterator/trainer 这几个 key 及其 value
-由于本文不是专门介绍 AllenNLP 的文章，所以只对这些配置做简要说明，详细内容可查看文档。
-
-数据部分
-
-train_data_path 和 test_data_path 比较好理解，它们指定了训练数据和测试数据的文件路径；而 data_reader 则限定了数据文件的格式。
-
-data_reader 中的配置，会被用来构建一个 DatasetReader 的子类的对象，用来读取数据并转换成一个个 Instance 对象。
-
-内置的可用来读取分类数据的 DataReader 是 TextClassificationJsonReader ，所以配置中有
-
-"type": "text_classification_json"
-这个 type 的值是 TextClassificationJsonReader 这个类实现的时候注册上的，去看代码会看到有这样的片段
-
-@DatasetReader.register("text_classification_json")
-class TextClassificationJsonReader(DatasetReader):
-这个 TextClassificationJsonReader 要求的数据文件是一行一个 json 数据，如下：
-
-{"label": "education", "text": "名师指导托福语法技巧：名词的复数形式"}
-{"label": "education", "text": "中国高考成绩海外认可是“狼来了”吗？"}
-{"label": "sports, "text": "图文：法网孟菲尔斯苦战进16强孟菲尔斯怒吼"}
-{"label": "sports, "text": "四川丹棱举行全国长距登山挑战赛近万人参与"}
-DataReader 通过配置中 tokenizer 部分会创建一个分词器，用来将文本转换为词序列
-
-"tokenizer": {
-    "type": "word",
-    "word_splitter": {
-        "type": "jieba",
-    }
-}
-type 的值设置为 word，这没什么好说的。
-
-tokenizer 中的 word_splitter 指定的才是真正的分词器（比较绕）。
-
-如果是英文的数据，那么 word_splitter 的配置可以不写，默认就是支持英文分词的。
-
-但如果是用于中文处理的话，有一个 SpacyWordSplitter 可以用于中文分类，但是现有的中文 spaCy 模型仅支持 spaCy 2.0.x，和 AllenNLP 中 spaCy 要求的版本不兼容，这个是比较坑的。
-
-好在 AllenNLP 提供了加载自定义模块的方法，按照如下方法来处理这个问题
-
-mkdir allen_ext/
-touch allen_ext/__init__.py
-touch allen_ext/word_splitter.py
-然后在 allen_ext/word_splitter.py 中写入如下内容
-
-from typing import List
-
-import jieba
-from overrides import overrides
-from allennlp.data.tokenizers.token import Token
-from allennlp.data.tokenizers.word_splitter import WordSplitter
-
-
-@WordSplitter.register('jieba')
-class JiebaWordSplitter(WordSplitter):
-
-    def __init__(self):
-        pass
-
-    @overrides
-    def split_words(self, sentence: str) -> List[Token]:
-        offset = 0
-        tokens = []
-        for word in jieba.lcut(sentence):
-            word = word.strip()
-            if not word:
-                continue
-
-            start = sentence.find(word, offset)
-            tokens.append(Token(word, start))
-
-            offset = start + len(word)
-
-        return tokens
-使用 WordSplitter.register('jieba') 后就可以在配置中 word_splitter 部分写上 "type": "jieba" 来启用。
-
-在 allen_ext/__init__.py 中写入如下内容
-
-from .word_splitter import JiebaWordSplitter
-
-__all__ = ['JiebaWordSplitter']
-自定义了 JiebaWordSplitter 后在训练的时候还要加载 allen_ext 这个目录才能生效，这个之后再说。
-
-模型部分
-
-因为是做文本分类，所以 type 设置为 basic_classifier。
-
-这个分类器需要 text_field_embedder 和 seq2vec_encoder 两个参数：
-
-text_field_embedder 用来定义 word embedding，这个配置应该还好理解
-
-"text_field_embedder": {
-    "tokens": {
-        "type": "embedding",
-        "embedding_dim": 100,
-        "trainable": true
-    }
-}
-seq2vec_encoder 则用来产生句子的编码向量用于分类，这里选择了 CNN
-
-"seq2vec_encoder": {
-    "type": "cnn",
-    "embedding_dim": 100,
-    "num_filters": 1,
-    "ngram_filter_sizes": [2, 3, 4]
-}
-训练部分：略
-配置文件写好后，假设配置文件为 config.json，直接执行下面的命令来训练即可
-
-allennlp train config.json -s model_save_dir --include-package allen_ext
-选项 --include-package allen_ext 用来来加载自定义的模块。
-
-最终会在 save_dir 目录下产生一个 model.tar.gz 文件，就是模型参数，然后目录下还会产生 tensorboard 能读取的 log，这个挺方便的。
-
-评估的话，用 evaluate 命令
-
-allennlp evaluate model_save_dir/model.tar.gz test.jsonl --include-package allen_ext
-比较麻烦的是，预测需要一个 Predictor，而 AllenNLP 中内置的 TextClassifierPredictor 要求的输入是 {"sentence": "xxx"} ，这个和 TextClassificationJsonReader 的要求不一样……
-
-如果是在代码里进行预测，那么是没有问题的，可以这样
-
-from allen_ext import *         # noqa
-from allennlp.models.archival import load_archive
-from allennlp.predictors.predictor import Predictor
-
-archive = load_archive('model_save_dir/model.tar.gz')
-predictor = Predictor.from_archive(archive)
-
-inputs = {"sentence": "名师指导托福语法技巧：名词的复数形式"}
-result = predictor.predict_json(inputs)
-得到的 result 是这样的结构
-
-{
-    'label': 'education',
-    'logits': [
-        15.88630199432373,
-        0.7209644317626953,
-        7.292031764984131,
-        5.195938587188721,
-        5.073373317718506,
-        -35.6490478515625,
-        -7.7982988357543945,
-        -35.44648742675781,
-        -18.14293098449707,
-        -14.513381004333496
-    ],
-    'probs': [
-        0.999771773815155,
-        2.592259420453047e-07,
-        0.0001851213601185009,
-        2.2758060367777944e-05,
-        2.013285666180309e-05,
-        4.153195524896307e-23,
-        5.1737975015342386e-11,
-        5.085729773519049e-23,
-        1.6641527142180782e-15,
-        6.273159211056881e-14
-    ],
-}
-这个输出结构完全是由 TextClassifierPredictor 决定的。
-
-如果要自定义 Predictor，可以参考文档。
-
-基于 BERT 进行文本分类
-AllenNLP 是基于 pytorch 实现的，所以 Google 提供的 BERT 模型在它这里没法用，需要下载它自己提供的模型，以中文模型为例：
-
-mkdir chinese_bert_torch && cd chinese_bert_torch
-wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-pytorch_model.bin -O pytorch_model.bin
-wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-config.json -O config.json
-wget https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab.txt -O vocab.txt
-然后 config.json 中 data_reader 部分这样写
-
-{
-    "dataset_reader": {
-        "type": "text_classification_json",
-        "tokenizer": {
-            "type": "word",
-            "word_splitter": {
-                "type": "bert-basic",
-            }
-        },
-        "token_indexers": {
-            "bert": {
-                "type": "bert-pretrained",
-                "pretrained_model": "./chinese_bert_torch/vocab.txt"
-            }
-        }
-    }
-}
-model 部分这么写
-
-{
-    "model": {
-        "type": "bert_for_classification",
-        "bert_model": "./chinese_bert_torch",
-        "trainable": false
-    }
-}
-这里 trainable 设置成 false 的话 BERT 就只是充当一个 encoder，不参与训练；如果要进行 finetuning 的话将其改为 true。
-
-完整的配置是这个样子的
-
-{
-    "dataset_reader": {
-        "type": "text_classification_json",
-        "tokenizer": {
-            "type": "word",
-            "word_splitter": {
-                "type": "bert-basic",
-            }
-        },
-        "token_indexers": {
-            "bert": {
-                "type": "bert-pretrained",
-                "pretrained_model": "./chinese_bert_torch/vocab.txt"
-            }
-        }
-    },
-    "train_data_path": "allen.data.train",
-    "test_data_path": "allen.data.test",
-    "evaluate_on_test": true,
-    "model": {
-        "type": "bert_for_classification",
-        "bert_model": "./chinese_bert_torch",
-        "trainable": false
-    },
-    "iterator": {
-        "type": "bucket",
-        "sorting_keys": [["tokens", "num_tokens"]],
-        "batch_size": 64
-    },
-    "trainer": {
-        "num_epochs": 5,
-        "patience": 3,
-        "cuda_device": -1,
-        "grad_clipping": 5.0,
-        "validation_metric": "+accuracy",
-        "optimizer": {
-            "type": "adam"
-        }
-    }
-}
+```
 训练、评估、预测等操作同未使用 BERT 的时候一样。
