@@ -1,8 +1,34 @@
 # NLP随笔
+## 目录<a name='toc'></a>    [返回目录](#toc)
+  * [定义](#definition)
+  * [主要难点](#difficulties)
+  * [主要应用和关键技术](#app_n_tech)
+  * [Unicode 简介](#unicode_intro)
+  * [Unicode 在 NLP 中的应用](#unicode_in_nlp)
+    + [根据 Unihan 数据来从文本中筛选中文字符](#---unihan--------------)
+    + [用 category 属性判断标点、数字、货币单位等](#--category----------------)
+  * [关于文本分类](#classification)
+    + [一些不建议使用的工具](#not_useful_tools)
+      - [腾讯的 NeuralClassifier](#----neuralclassifier)
+      - [无人维护的 keras-text](#------keras-text)
+      - [差强人意的 text-classification-keras](#------text-classification-keras)
+    + [可用的文本分类工具及其使用方法](#useful_tools)
+      - [使用 NLTK 进行文本分类](#nltk)
+      - [使用 TextBlob 进行文本分类](#textblob)
+      - [使用 TextGrocery 进行文本分类](#textgrocery)
+      - [使用 sklearn 进行文本分类](#sklearn)
+      - [使用 FastText 进行文本分类](#fasttext)
+      - [使用 Kashgari 进行文本分类](#kashgari)
+        * [进行常规的文本分类](#---------)
+        * [基于 BERT 进行文本分类](#---bert-------)
+      - [使用 AllenNLP 进行文本分类](#allennlp)
+        * [进行常规的文本分类](#----------1)
+        * [基于 BERT 进行文本分类](#---bert--------1)
+
 
 此处记录从网上搜集的一些NLP相关知识，以备后查。
 
-## 定义
+## 定义<a name='definition'></a>    [返回目录](#toc)
 
 自然语言处理，即 Natural Language Processing，简称 NLP ，是一门旨在利用计算机技术来理解并运用自然语言的学科。在不同的场景下，有时候也称之为计算语言学(Computational Linguistics, CL)或者自然语言理解(Natural Language Understanding, NLU)。
 
@@ -35,7 +61,7 @@
 
 4. NLP 在理解自然语言之后还有加以运用，因此凡是有用计算机来处理、分析自然语言的应用，我们都可以说它是一个 NLP 过程 —— 当然有可能不止是 NLP。
 
-## 主要难点
+## 主要难点<a name='difficulties'></a>    [返回目录](#toc)
 自然语言自身的一些特性，给计算机理解自然语言这件事情带来了非常多的困难。
 
 第一个特性是自然语言中普遍地存在歧义现象，这种歧义体现在多个层面：
@@ -136,7 +162,7 @@
 
 虽然有上述诸多困难，但 NLP 领域也形成了相应的应对方法，不过也只能说是「应对」而非「解决」，因为这些方法的目的都是追求解决上述问题在实际应用中常见的一部分，使对应的 NLP 系统能在受限场景中正确处理绝大部分比如 80% 或者 90% 的自然语言；而剩下未能处理的部分，则可以通过系统、产品上的一些设计，根据用户行为把它们找出来，加以研究并更新技术，如此逐渐迭代，来让 NLP 系统逐渐达到令人满意的效果。
 
-## 主要应用和关键技术
+## 主要应用和关键技术<a name='app_n_tech'></a>    [返回目录](#toc)
 一些比较成体系的 NLP 应用，有
 
 1. 机器翻译: 将一种自然语言的文字转换成另外一种自然语言的文字
@@ -227,19 +253,19 @@
 
 深度学习相关的技术一般都会需要比较多的数据，但我们会发现在实际的任务中，可能并没有那么多数据来让我们上深度学习，或者数据太多但却包含了太多噪音数据。土豪的办法是用金钱来为所欲为顺便创造点特殊岗位造福社会。比较经济的做法是先使用前面提到的传统的、经典的方法，同时在产品、系统的上设计好良好的反馈渠道，在冷启动后不断进行迭代优化，同时有意识地从日志、用户反馈中积累数据，到达一定的量后开始上深度学习来解决传统模型泛化性不够好的问题。
 
-## Unicode 简介
+## Unicode 简介<a name='unicode_intro'></a>    [返回目录](#toc)
 所有的数据，在计算机上都是以数字（严格来说是二进制）的形式存在的，文字也是如此，只不过咱们的编辑器、浏览器对这些数字做了特殊处理，将其对应的形状展示出来了而已。在这个基础上，不同的操作系统、平台、应用为了能够正常地交流，就必须约定一个统一的「计算机中的数字」到「实际文字」的对应关系（即编码标准），比方说数字 97 对应小写英文字母「a」、33528 对应「言」字之类的 —— 没错，所谓的编码标准，就相当于一个大的索引表，每个文字在这个索引表里都有一个对应的索引号（也就是我们刚才说到的数字）。
 
 在计算机系统发展早期，其实是并没有这样一个统一的编码系统的，美国一开始就用了 0-127 的值来编码，包括了大小写字母、数字、标点符号以及一些特殊符号，这就是“美国信息交换标准代码(American Standard Code for Information Interchange, ASCII)”。显然 ASCII 是不适用于中文的，所以后来我国推出过 GB2312 标准，收录了 6763 个汉字，并在之后经过扩展有了 GBK 和 GB18030 多个编码标准；另外一方面，港澳台地区又独立发展出了繁体的 BIG5 编码……这些编码都是互相不兼容的，这就会导致使用编码 A 的网站，被使用编码 B 的计算机访问后显示为乱码的状况，而这里只提到了中英文的编码体系，实际上很多国家都有过自己的标准，而且很多是还在使用的。
 
 基于这种状况，后来计算机领域产生了一个叫做 Unicode 的统一编码，又称「万国码」，收录了世界上各个国家大部分的文字，并且仍然在不断增修，今年六月份发布了第十一个正式版本。目前使用最广泛的是 Unicode 实现是 UTF-8 编码。
 
-## Unicode 在 NLP 中的应用
+## Unicode 在 NLP 中的应用<a name='unicode_in_nlp'></a>    [返回目录](#toc)
 Unicode 这个标准，并不是单纯做好所有文字的索引，它还对文字分门别类做了很多的整理，比如说同一个语系的文字会放在索引表的邻近区域，而一个文字是否是数字或标点、数学符号这些信息也都在 Unicode 标准中有记录，并且所有这些数据都是公开的。如果能善加利用这些信息的话，能帮助到咱们在 NLP 工作中对文字进行处理的部分。
 
 这里不准备对 Unicode 数据做系统、全面的说明，如有兴趣，可以前往 http://unicode.org/charts/ 查看完整的 Unicode 数据，这里就以几个例子来讲解几个应用。
 
-### 根据 Unihan 数据来从文本中筛选中文字符
+### 根据 Unihan 数据来从文本中筛选中文字符<a name='choose_chinese'></a>    [返回目录](#toc)
 Unicode 中中文数据的部分被称为「Unihan 数据库」，在<a href="http://unicode.org/charts/unihangridindex.html">这个页面</a>可以看到 Unihan 中数据的范围。根据 Unihan 数据，可以得知在 Unicode 编码里，中文的索引值的范围包括以下几部分:
 
 * U+3400 - U+4DB5: 「U+」表示这是 Unicode 编码，3400 是十六进制表示，换算成十进制是 13312，下同
@@ -327,7 +353,7 @@ def is_chinese_char(char):
 
 对于其他语言的文字，将上述方法中的参数（编码区域、script 等）稍作修改也是可行的，不再赘述。
 
-### 用 category 属性判断标点、数字、货币单位等
+### 用 category 属性判断标点、数字、货币单位等<a name='choose_category'></a>    [返回目录](#toc)
 
 Unicode 数据中，每个 Unicode 字符还有一个叫做 category 的属性，这个属性和字从属的语言无关。category 一共有 Letter、Mark、Number、Punctuation、Symbol、Seperator、Other 七大类，然后每个大类下还有一些小类，总体上是一个二级分类结构。因此在 Unicode 中有两个字母来组合表示一个 Unicode 字符的类型信息，我们可以用 unicodedata.category 来得到这个信息
 ```python
@@ -454,7 +480,7 @@ for char in chars:
 ```
 可以看到，在 NUMBER/DIGIT/NUMERAL 后面的那个单词，就是对应数值的英文单词，只要把这个英文单词提取出来就得到了一个统一的表示，然后再将其转换成阿拉伯数字即可。
 
-## 关于文本分类
+## 关于文本分类<a name='classification'></a>    [返回目录](#toc)
 所谓的文本分类，是机器学习中分类问题在 NLP 领域中的应用，它的理论相对简单、工具成熟、上手简单，大家基本上是把它当作一个「理论上已经解决」的问题来看待，但其实在实际场景中处理文本分类任务时还是会遇到不少问题的，加上文本分类又是 NLP 领域中最常见的任务之一。
 
 关于文本分类
@@ -467,7 +493,7 @@ for char in chars:
 * 工程化程度良好的，能提供易用的编程接口或命令行接口
 * 以 Python 生态内的工具为主 —— 在大数据及AI时代，Python已经成熟No. 1的变成语言
 
-### 一些不建议使用的工具
+### 一些不建议使用的工具<a name='not_useful_tools'></a>    [返回目录](#toc)
 本节中列举的工具，建议不要浪费时间在上面。（参考网上经验）
 
 #### 腾讯的 NeuralClassifier
@@ -498,8 +524,8 @@ for char in chars:
 
 作者应该是从 keras-text 项目 fork 过来然后改成能用的状态的，也挺不容易的，但不管怎么说这不是一个合格的工具。
 
-### 可用的文本分类工具及其使用方法
-#### 使用 NLTK 进行文本分类
+### 可用的文本分类工具及其使用方法<a name='useful_tools'></a>    [返回目录](#toc)
+#### 使用 NLTK 进行文本分类<a name='nltk'></a>    [返回目录](#toc)
 安装: `pip install nltk`
 
 文档: `https://www.nltk.org/api/nltk.classify.html`
@@ -591,7 +617,7 @@ with open('model.pkl', 'rb') as f:
 ```
 NLTK 中还有其他分类器，使用方法和 NaiveBayesClassifier 大同小异。
 
-#### 使用 TextBlob 进行文本分类
+#### 使用 TextBlob 进行文本分类<a name='textblob'></a>    [返回目录](#toc)
 注意：TextBlob 仅支持英文
 
 安装: `pip install textblob`
@@ -636,7 +662,7 @@ label = classifier.classify("this is a sentence to be classified")
 
 相比 NLTK 中原来的文本分类，TextBlob 的封装隐藏了一些细节，简化了接口，用起来还是挺方便的。不好的一点是，TextBlob 里强制依赖了 NLTK 里的 word_tokenize，虽然说 word_tokenize 可以通过 language 参数设置语言，但在 TextBlob 里没有提供传递这个参数的机会，这就导致 TextBlob 只能对英文进行分类。
 
-#### 使用 TextGrocery 进行文本分类
+#### 使用 TextGrocery 进行文本分类<a name='textgrocery'></a>    [返回目录](#toc)
 注意：TextGrocery 仅支持 Python2
 
 安装: `pip install tgrocery`
@@ -737,7 +763,7 @@ classifier.load()
 
 TextGrocery 是一个基于 liblinear 的小巧的文本分类实现，可惜作者已经放弃维护了，目前只能在 Python2 环境里面使用。
 
-#### 使用 sklearn 进行文本分类
+#### 使用 sklearn 进行文本分类<a name='sklearn'></a>    [返回目录](#toc)
 安装: `pip install scikit-learn`
 
 文档: `https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html#training-a-classifier`
@@ -937,7 +963,7 @@ pipeline.fit(train_texts, train_labels)
 ```
 评估、预测和非 pipeline 方式的差不多，都是可以省略掉将文本转成向量的这个步骤；模型保存时只需要将 pipeline 保存成文件即可。
 
-#### 使用 FastText 进行文本分类
+#### 使用 FastText 进行文本分类<a name='fasttext'></a>    [返回目录](#toc)
 安装: `pip install fasttext`
 
 文档: `https://fasttext.cc/docs/en/python-module.html#text-classification-model`
@@ -1010,7 +1036,7 @@ model.save_model('model.bin')
 import fasttext
 model = fasttext.load_model('model.bin')
 ```
-#### 使用 Kashgari 进行文本分类
+#### 使用 Kashgari 进行文本分类<a name='kashgari'></a>    [返回目录](#toc)
 安装: `pip install kashgari-tf tensorflow==1.14.0`
 
 文档: `https://kashgari.bmio.net/`
@@ -1123,7 +1149,7 @@ model = CNN_Model(embedding)
 ```python
 embedding = BERTEmbedding('chinese_L-12_H-768_A-12/', task=kashgari.CLASSIFICATION, trainable=True)
 ```
-#### 使用 AllenNLP 进行文本分类
+#### 使用 AllenNLP 进行文本分类<a name='allennlp'></a>    [返回目录](#toc)
 安装: `pip install allennlp`
 
 文档: `https://allennlp.org/tutorials`
@@ -1358,7 +1384,7 @@ result = predictor.predict_json(inputs)
 
 如果要自定义 Predictor，可以参考文档。
 
-#####　基于 BERT 进行文本分类
+##### 基于 BERT 进行文本分类
 AllenNLP 是基于 pytorch 实现的，所以 Google 提供的 BERT 模型在它这里没法用，需要下载它自己提供的模型，以中文模型为例：
 ```
 mkdir chinese_bert_torch && cd chinese_bert_torch
